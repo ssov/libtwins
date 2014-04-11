@@ -20,6 +20,33 @@ module LibTwins
           @schedules = []
         end
 
+        def registration(id)
+          left_menu = @session.frame_with(name: "menu").click
+          page = left_menu.form_with(name: "MenuForm") do |form|
+            form.subsysid = "F350"
+            form.action = "/campusweb/campussquare.do#F350"
+          end.submit
+          .form_with(name: "linkForm") do |form|
+            form._flowId = "RSW0001000-flow"
+          end.submit
+          .form_with(name: "InputForm") do |form|
+            form.yobi = "9"
+            form.jigen = "0"
+          end.submit
+          .form_with(name: "InputForm") do |form|
+            form.jikanwariCode = id
+            form._eventId = "insert"
+          end.submit
+
+          unless page.search(".error").first.nil?
+            puts page.search(".error").first.text.toutf8
+            puts page.search("body/p")[1].text.split(/\r\n/)
+                     .map{|i| i.gsub(" ", "")}.select{|i| not i.empty?}
+                     .join("\n").toutf8
+          end
+          binding.pry
+        end
+
         def status
           left_menu = @session.frame_with(name: "menu").click
           page = left_menu.form_with(name: "MenuForm") do |form|
