@@ -3,17 +3,17 @@ require 'mechanize'
 module LibTwins
   TWINS_URL="https://twins.tsukuba.ac.jp/campusweb/"
   class LibTwins
-    class Course
-      class Lecture
-        attr_accessor :id, :title, :teacher
+    class Lecture
+      attr_accessor :id, :title, :teacher
 
-        def initialize(**args)
-          args.each do |k, v|
-            self.instance_variable_set("@#{k}".to_sym, v)
-          end
+      def initialize(**args)
+        args.each do |k, v|
+          self.instance_variable_set("@#{k}".to_sym, v)
         end
       end
+    end
 
+    class Course
       class RegistrationStatus
         def initialize(session)
           @session = session
@@ -44,7 +44,6 @@ module LibTwins
                      .map{|i| i.gsub(" ", "")}.select{|i| not i.empty?}
                      .join("\n").toutf8
           end
-          binding.pry
         end
 
         def status
@@ -64,7 +63,7 @@ module LibTwins
               res = page.search("table.rishu-koma/tr[#{i}]/td")[j].text
                 .split(/\r\n/).map{|k| k.gsub(' ', '')}
                 .select{|k| not k.empty?}
-              lecture = Course::Lecture.new(
+              lecture = Lecture.new(
                      id: res[0],
                   title: res[1],
                 teacher: res[2]
@@ -76,7 +75,7 @@ module LibTwins
           etc = page.search("table.rishu-etc[1]")[0].search("tr")
           (2..etc.size-1).each do |i|
             res = etc[i].text.split(/\r\n/).map{|i| i.gsub(' ', '')}.select{|i| not i.empty?}
-            lecture = Course::Lecture.new(
+            lecture = Lecture.new(
                    id: res[2],
                 title: res[3],
               teacher: res[4]
@@ -87,8 +86,8 @@ module LibTwins
         end
 
         def csv
-          left_menu = @session.frame_with(name: "menu").click
-          csv = left_menu.form_with(name: "MenuForm") do |form|
+          csv = @session.frame_with(name: "menu").click
+          .form_with(name: "MenuForm") do |form|
             form.subsysid = "F350"
             form.action = "/campusweb/campussquare.do#F350"
           end.submit
@@ -102,6 +101,8 @@ module LibTwins
             form.radiobuttons_with(name: 'outputType', value: 'csv').first.check
             form.radiobuttons_with(name: 'fileEncoding', value: 'UTF8').first.check
           end.submit
+
+          StringIO.new(csv.body.toutf8).read.gsub(/\r/, '')
         end
       end
 
@@ -111,6 +112,41 @@ module LibTwins
 
       def registration_status
         RegistrationStatus.new(@session)
+      end
+    end
+
+    class Grades
+      class FinalizedGradeInquiry
+        def csv
+          csv = @session.frame_with(name: "menu").click
+          .form_with(name: "MenuForm") do |form|
+            form.subsysid = "F360"
+            form.action = "/campusweb/campussquare.do#F360"
+          end.submit
+          .form_with(name: "linkForm") do |form|
+            form._flowId = "SIW0001300-flow"
+          end.submit
+          .form_with(name: "InputForm") do |form|
+            form._eventId = "output"
+          end.submit
+          .form_with(name: "OutputForm") do |form|
+            form._eventId = "output"
+          end.submit
+
+          StringIO.new(csv.body.toutf8).read.gsub(/\r/, '')
+        end
+
+        def initialize(session)
+          @session = session
+        end
+      end
+
+      def finalized_grade_inquiry
+        FinalizedGradeInquiry.new(@session)
+      end
+
+      def initialize(session)
+        @session = session
       end
     end
 
@@ -143,6 +179,10 @@ module LibTwins
 
     def course
       Course.new(@session)
+    end
+
+    def grades
+      Grades.new(@session)
     end
   end
 end
